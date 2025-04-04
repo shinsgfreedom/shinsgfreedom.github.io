@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="google-adsense-account" content="ca-pub-1638183902108768">
+    <title>랜덤 팀 나누기</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f0f4f8;
+            padding: 2rem;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+        }
+        textarea {
+            width: 100%;
+            height: 80px;
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+        }
+        input[type="number"] {
+            padding: 0.5rem;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+            width: 100px;
+        }
+        button {
+            padding: 0.5rem 1rem;
+            border: none;
+            background-color: #eee;
+            color: #333;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 0.3rem;
+        }
+        button:hover {
+            background-color: #ccc;
+        }
+        table {
+            width: 100%;
+            margin-top: 0.5rem;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 0.5rem;
+            text-align: center;
+        }
+        th {
+            background-color: #e2f0e9;
+            color: #333;
+        }
+        td {
+            background-color: white;
+        }
+        .gender-section {
+            display: none;
+            margin-top: 1rem;
+        }
+        .male span, .female span {
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+            color: black;
+        }
+        .male span {
+            background-color: #cce5ff;
+        }
+        .female span {
+            background-color: #ffd6e7;
+        }
+        .member-target-wrapper {
+            display: none;
+        }
+        .shake {
+            animation: shake 0.3s ease-in-out 2;
+        }
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+    </style>
+</head>
+<body>
+<h1>🎲 랜덤 팀 나누기</h1>
+<label><input type="checkbox" id="genderToggle" onchange="toggleGender()" /> 성별로 나누기</label>
+<label style="margin-left: 1rem;"><input type="checkbox" id="memberCheckToggle" onchange="toggleMemberTarget()" /> 인원 수 맞추기</label>
+<br /><br />
+<span class="member-target-wrapper" id="memberTargetWrapper">
+    <label for="memberTarget">참가자 수:</label>
+    <input type="number" id="memberTarget" min="1" placeholder="예: 12" />
+  </span>
+
+<div id="defaultInput">
+    <p>
+        <button onclick="loadExample()">✨ 예시 불러오기</button>
+    </p>
+    <textarea id="nameInput" placeholder="이름을 입력하세요 (띄어쓰기, 쉼표, 엔터로 구분)"></textarea>
+</div>
+
+<div class="gender-section" id="genderInput">
+    <p>👨🏻</p>
+    <textarea id="maleInput" placeholder="남자 이름들"></textarea>
+    <p>👩🏻</p>
+    <textarea id="femaleInput" placeholder="여자 이름들"></textarea>
+</div>
+
+<label>팀 수:</label>
+<input type="number" id="teamCount" min="1" oninput="this.value = this.value.replace(/[^0-9]/g, '')" />
+<button onclick="splitTeams()" style="background-color: #b6d7a8; color: #fff;">팀 나누기</button>
+<div id="csvButtonWrapper" style="display: none; text-align: right; margin-top: 1rem;">
+    <button onclick="downloadCSV()">💾 CSV 저장</button>
+</div>
+<div id="result"></div>
+
+<script>
+    function toggleGender() {
+        const isChecked = document.getElementById('genderToggle').checked;
+        document.getElementById('defaultInput').style.display = isChecked ? 'none' : 'block';
+        document.getElementById('genderInput').style.display = isChecked ? 'block' : 'none';
+    }
+
+    function toggleMemberTarget() {
+        const checked = document.getElementById('memberCheckToggle').checked;
+        document.getElementById('memberTargetWrapper').style.display = checked ? 'inline-block' : 'none';
+    }
+
+    function loadExample() {
+        document.getElementById('nameInput').value = '똘기, 떵이, 호치, 새초미, 드라고, 요롱이, 마초, 미미, 몽치, 키키, 강다리, 찡찡이';
+    }
+
+    function downloadCSV() {
+        const table = document.querySelector("#result table");
+        if (!table) return;
+
+        let csv = "";
+        const rows = table.querySelectorAll("tr");
+        rows.forEach(row => {
+            const cols = row.querySelectorAll("th, td");
+            let rowData = [];
+            cols.forEach(col => rowData.push(col.innerText));
+            csv += rowData.join(",") + "\n";
+        });
+
+        const now = new Date();
+        const timestamp = now.getFullYear().toString()
+            + String(now.getMonth() + 1).padStart(2, '0')
+            + String(now.getDate()).padStart(2, '0')
+            + String(now.getHours()).padStart(2, '0')
+            + String(now.getMinutes()).padStart(2, '0')
+            + String(now.getSeconds()).padStart(2, '0');
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `teams_${timestamp}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function splitTeams() {
+        const isGender = document.getElementById('genderToggle').checked;
+        const checkMember = document.getElementById('memberCheckToggle').checked;
+        const memberTarget = parseInt(document.getElementById('memberTarget').value);
+        const teamCount = parseInt(document.getElementById('teamCount').value);
+        const resultDiv = document.getElementById('result');
+
+        let names = [];
+        let genderMap = {};
+
+        if (isGender) {
+            let males = document.getElementById('maleInput').value
+                .split(/[\n,\s]+/).map(n => n.trim()).filter(n => n);
+            let females = document.getElementById('femaleInput').value
+                .split(/[\n,\s]+/).map(n => n.trim()).filter(n => n);
+
+            males.forEach(name => genderMap[name] = 'male');
+            females.forEach(name => genderMap[name] = 'female');
+
+            names = shuffleArray(males).concat(shuffleArray(females));
+        } else {
+            names = document.getElementById('nameInput').value
+                .split(/[\n,\s]+/).map(n => n.trim()).filter(n => n);
+            names = shuffleArray(names);
+        }
+
+        if (!teamCount || teamCount < 1 || names.length === 0) {
+            resultDiv.innerHTML = '<p style="color: red;" class="shake">이름과 유효한 팀 수를 입력해주세요.</p>';
+            return;
+        }
+
+        if (checkMember && memberTarget) {
+            const diff = names.length - memberTarget;
+            if (diff > 0) {
+                resultDiv.innerHTML = `<p style="color: red;" class="shake">${diff}명 더 입력되었습니다.</p>`;
+                return;
+            } else if (diff < 0) {
+                resultDiv.innerHTML = `<p style="color: red;" class="shake">${-diff}명 부족합니다.</p>`;
+                return;
+            }
+        }
+
+        const teams = Array.from({ length: teamCount }, () => []);
+        names.forEach((name, index) => {
+            teams[index % teamCount].push(name);
+        });
+
+        const maxLength = Math.max(...teams.map(team => team.length));
+        let html = '<table><tr>';
+        for (let i = 0; i < teamCount; i++) {
+            html += `<th>팀 ${i + 1}</th>`;
+        }
+        html += '</tr>';
+
+        for (let row = 0; row < maxLength; row++) {
+            html += '<tr>';
+            for (let col = 0; col < teamCount; col++) {
+                const name = teams[col][row] || '';
+                const genderClass = genderMap[name] || '';
+                const content = genderClass ? `<span class="${genderClass}"><span>${name}</span></span>` : name;
+                html += `<td>${content}</td>`;
+            }
+            html += '</tr>';
+        }
+        html += '</table>';
+
+        resultDiv.innerHTML = html;
+        document.getElementById('csvButtonWrapper').style.display = 'block';
+    }
+
+    function shuffleArray(array) {
+        return array.sort(() => Math.random() - 0.5);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('memberTargetWrapper').style.display = 'none';
+    });
+</script>
+</body>
+</html>
