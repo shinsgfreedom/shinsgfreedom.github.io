@@ -194,7 +194,14 @@
     }
 
     function printBarcodes() {
-        const container = document.getElementById('barcodeContainer').cloneNode(true);
+        const original = document.getElementById('barcodeContainer');
+        const hasCards = original.querySelectorAll('.barcode-card').length > 0;
+        if (!hasCards) {
+            alert("인쇄할 바코드가 없습니다.");
+            return;
+        }
+
+        const container = original.cloneNode(true);
         const closeButtons = container.querySelectorAll('.close-btn');
         closeButtons.forEach(btn => btn.remove());
         container.classList.add('print-mode');
