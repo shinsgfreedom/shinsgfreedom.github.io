@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>랜덤 이름 추첨기</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .shake {
+      animation: shake 0.3s;
+    }
+    @keyframes shake {
+      0% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      50% { transform: translateX(5px); }
+      75% { transform: translateX(-5px); }
+      100% { transform: translateX(0); }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+  <div class="bg-white px-4 sm:px-8 py-8 rounded-2xl shadow-md w-full max-w-xl text-center">
+    <h1 class="text-2xl sm:text-3xl font-bold mb-6">🎲 랜덤 이름 추첨기</h1>
+
+    <textarea id="nameInput" class="w-full p-3 border rounded text-base mb-2"
+      rows="4" placeholder="이름을 공백, 쉼표, 줄바꿈 등으로 입력하세요" oninput="updateNameCount()"></textarea>
+
+    <p id="nameCount" class="text-sm text-gray-500 mb-3">현재 0명 입력 중 (최대 50명)</p>
+
+    <div class="flex flex-col sm:flex-row sm:justify-center sm:gap-4 gap-3 mb-4">
+      <label class="inline-flex items-center justify-center sm:justify-start">
+        <input type="checkbox" id="randomMode" class="form-checkbox h-4 w-4 text-blue-500 mr-2">
+        <span class="text-sm sm:text-base">랜덤 확률 모드</span>
+      </label>
+      <input type="number" id="countInput" value="1" min="1"
+        class="w-full sm:w-24 px-3 py-2 border rounded text-center text-base" />
+    </div>
+
+    <button onclick="drawName()" class="w-full sm:w-auto bg-blue-500 text-white text-base px-6 py-3 rounded hover:bg-blue-600 transition mb-6">
+      추첨하기
+    </button>
+
+    <div id="result" class="text-lg font-semibold text-green-600 mb-4"></div>
+
+    <div class="relative h-64 mb-4">
+      <canvas id="chartCanvas" class="mx-auto max-w-full"></canvas>
+    </div>
+  </div>
+
+  <script>
+    let chart;
+
+    function updateNameCount() {
+      const input = document.getElementById("nameInput").value;
+      const names = input.split(/[\s,]+/).map(n => n.trim()).filter(n => n);
+      const countText = document.getElementById("nameCount");
+      countText.textContent = `현재 ${names.length}명 입력 중 (최대 50명)`;
+    }
+
+    function showError(message) {
+      const resultBox = document.getElementById("result");
+      resultBox.innerHTML = `⛔ ${message}`;
+      resultBox.classList.remove("text-green-600");
+      resultBox.classList.add("text-red-500", "shake");
+      setTimeout(() => resultBox.classList.remove("shake"), 300);
+    }
+
+    function drawName() {
+      const input = document.getElementById("nameInput").value;
+      const isRandom = document.getElementById("randomMode").checked;
+      const countInput = document.getElementById("countInput");
+      const rawNames = input.split(/[\s,]+/).map(n => n.trim()).filter(n => n);
+      const resultBox = document.getElementById("result");
+      const count = Math.max(1, parseInt(countInput.value) || 1);
+
+      // 최대 인원 제한
+      if (rawNames.length > 50) {
+        showError("최대 50명까지만 입력할 수 있어요!");
+        return;
+      }
+
+      if (rawNames.length === 0) {
+        showError("이름을 입력해주세요!");
+        return;
+      }
+
+      if (count > rawNames.length - 1) {
+        showError(`최대 ${rawNames.length - 1}명까지만 뽑을 수 있어요!`);
+        return;
+      }
+
+      resultBox.classList.remove("text-red-500");
+      resultBox.classList.add("text-green-600");
+      resultBox.innerHTML = "🎰 추첨 중...";
+
+      setTimeout(() => {
+        let weights = isRandom ? rawNames.map(() => Math.random()) : rawNames.map(() => 1);
+        const total = weights.reduce((a, b) => a + b, 0);
+        const normalized = weights.map(w => w / total);
+
+        const winners = [];
+        const winnerChances = [];
+        const availableNames = [...rawNames];
+        let availableProbs = [...normalized];
+
+        for (let i = 0; i < count; i++) {
+          const rand = Math.random();
+          let cumulative = 0;
+          let winnerIndex = 0;
+          for (let j = 0; j < availableProbs.length; j++) {
+            cumulative += availableProbs[j];
+            if (rand < cumulative) {
+              winnerIndex = j;
+              break;
+            }
+          }
+          winners.push(availableNames[winnerIndex]);
+          winnerChances.push(Math.round(availableProbs[winnerIndex] * 100));
+
+          availableNames.splice(winnerIndex, 1);
+          availableProbs.splice(winnerIndex, 1);
+          const newTotal = availableProbs.reduce((a, b) => a + b, 0);
+          availableProbs = availableProbs.map(p => p / newTotal);
+        }
+
+        let resultHTML = '';
+        winners.forEach((name, i) => {
+          resultHTML += `🎉 <strong>${name}</strong> (${winnerChances[i]}% 확률)<br/>`;
+        });
+        resultBox.innerHTML = resultHTML;
+
+        const labels = rawNames;
+        const data = normalized.map(n => Math.round(n * 100));
+
+        if (chart) {
+          chart.data.labels = labels;
+          chart.data.datasets[0].data = data;
+          chart.update();
+        } else {
+          const ctx = document.getElementById("chartCanvas").getContext("2d");
+          chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: '추첨 확률 (%)',
+                data: data,
+                backgroundColor: 'rgba(250, 204, 21, 0.6)',
+                borderColor: 'rgba(250, 204, 21, 1)',
+                borderWidth: 1
+              }]
+            },
+            options: {
+              indexAxis: 'y',
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                x: {
+                  beginAtZero: true,
+                  max: 100
+                }
+              }
+            }
+          });
+        }
+      }, 1000);
+    }
+  </script>
+</body>
+</html>
