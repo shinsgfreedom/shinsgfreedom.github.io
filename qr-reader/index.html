@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Reader</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            padding: 2rem;
+            margin: 0;
+            background-color: #f9f9f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            color: #333;
+            text-align: center;
+        }
+
+        input[type="file"] {
+            margin-top: 1rem;
+            font-size: 1rem;
+            padding: 0.5rem 1rem;
+            border: 2px solid #f0f8ff;
+            border-radius: 8px;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+        }
+
+        input[type="file"]:hover {
+            background-color: #f0f8ff;
+            border-color: #0056b3;
+        }
+
+        #qr-result {
+            margin-top: 1.5rem;
+            font-size: 1rem;
+            color: #222;
+            word-break: break-word;
+        }
+
+        a {
+            color: #0056b3;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            #qr-result {
+                font-size: 1rem;
+            }
+
+            input[type="file"] {
+                width: 100%;
+                text-align: center;
+            }
+        }
+    </style>
+
+</head>
+<body>
+<h1>QR Code Reader</h1>
+🔻 이미지 업로드 🔻 <input type="file" id="file-input" accept="image/*">
+<canvas id="canvas" hidden></canvas>
+<p>QR Link 🔗 <span id="qr-result">...</span></p>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+<script>
+    const fileInput = document.getElementById('file-input');
+    const canvas = document.getElementById('canvas');
+    const context = canvas.getContext('2d');
+    const qrResult = document.getElementById('qr-result');
+
+    fileInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const img = new Image();
+        img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            context.drawImage(img, 0, 0);
+
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, canvas.width, canvas.height);
+
+            if (code) {
+                const text = code.data;
+                if (text.startsWith('http://') || text.startsWith('https://')) {
+                    qrResult.innerHTML = `<a href="${text}" target="_blank">${text}</a>`;
+                } else {
+                    qrResult.textContent = text;
+                }
+            } else {
+                qrResult.textContent = 'QR 코드를 찾을 수 없음';
+            }
+        };
+        img.src = URL.createObjectURL(file);
+    });
+</script>
+</body>
+</html>
