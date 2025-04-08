@@ -4,30 +4,43 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="google-adsense-account" content="ca-pub-1638183902108768">
-    <title>SSG의 프로젝트</title>
+    <title>SSG의 실험실</title>
     <style>
         body {
             font-family: sans-serif;
             margin: 0;
             padding: 2rem;
             background-color: #f9f9f9;
+            color: #333;
         }
 
         h1 {
-            font-size: 1.5rem;
+            font-size: 1.8rem;
             text-align: center;
-            margin-bottom: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        p.description {
+            max-width: 600px;
+            margin: 0 auto 2rem;
+            text-align: center;
+            font-size: 1rem;
+            color: #555;
         }
 
         ul {
             list-style: none;
             padding: 0;
-            max-width: 400px;
+            max-width: 500px;
             margin: 0 auto;
         }
 
         li {
-            margin: 1rem 0;
+            margin: 1.5rem 0;
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
         }
 
         a {
@@ -36,7 +49,7 @@
             color: white;
             text-decoration: none;
             padding: 1rem;
-            border-radius: 8px;
+            border-radius: 6px;
             text-align: center;
             font-size: 1.1rem;
             transition: background-color 0.3s;
@@ -45,14 +58,52 @@
         a:hover {
             background-color: #0056b3;
         }
+
+        .desc {
+            font-size: 0.95rem;
+            color: #666;
+            margin-top: 0.5rem;
+            text-align: center;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 3rem;
+            font-size: 0.8rem;
+            color: #999;
+        }
     </style>
 </head>
 <body>
+
 <h1>SSG의 실험실에 오신 것을 환영합니다 🎉</h1>
+<p class="description">
+    안녕하세요! 👩🏻‍💻<br/>
+    다양한 웹 기반 도구를 만들며 실험하는 개발자입니다.
+    이 페이지는 제가 만든 프로젝트들을 모아 소개하는 공간이에요.
+</p>
+
+<!-- 애드센스 광고 위치 -->
+<!-- <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1638183902108768" crossorigin="anonymous"></script> -->
+
 <ul>
-    <li><a href="/random-picker/">🎲 랜덤 추첨기</a></li>
-    <li><a href="/barcode-generator/">📦 바코드 생성기 (Multi)</a></li>
-    <li><a href="/team-splitter/">🎲 팀 나누기 </a></li>
+    <li>
+        <a href="/random-picker/">🎲 랜덤 추첨기</a>
+        <div class="desc">이름(항목) 등을 무작위로 추첨하는 간단한 도구입니다.</div>
+    </li>
+    <li>
+        <a href="/barcode-generator/">📦 바코드 생성기 (Multi)</a>
+        <div class="desc">여러 개의 바코드를 한 번에 생성하고 인쇄할 수 있어요.</div>
+    </li>
+    <li>
+        <a href="/team-splitter/">🤝 팀 나누기</a>
+        <div class="desc">인원수를 입력하면 팀을 자동으로 나눠줍니다.</div>
+    </li>
 </ul>
+
+<footer>
+    &copy; 2025 SSG | Powered by GitHub Pages
+</footer>
+
 </body>
 </html>
