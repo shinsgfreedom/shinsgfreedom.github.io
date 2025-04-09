@@ -85,13 +85,17 @@
             cursor: pointer;
         }
         .card-box input[type="text"],
-        .card-box input[type="number"],
+        .card-box input[type="tel"],
         .card-box textarea {
             margin-bottom: 8px;
             padding: 8px;
             border: 1px solid #ccc;
             border-radius: 6px;
             display: block;
+        }
+        .card-box input[type="tel"],
+        .condition-box input[type="tel"] {
+            text-align: right; /* 숫자 우측 정렬 */
         }
         .card-box input.card,
         .card-box input.target,
@@ -102,8 +106,13 @@
             margin-right: 4%;
             margin-left: 40px;
         }
-        .card-box input.balance {
+        .card-box input.sum {
+            float: right;
+            background-color: #f1f1f1; /* readonly input styling */
+        }
+        .balance, .sub-balance {
             margin-right: 0;
+            color: blue;
             background-color: #f1f1f1; /* readonly input styling */
         }
         .card-box textarea.note {
@@ -123,10 +132,18 @@
             .card-box input.card,
             .card-box input.target,
             .card-box input.used,
+            .card-box input.sum,
             .card-box input.balance {
                 display: block;
                 margin-right: 0;
                 margin-left: 40px;
+            }
+            .card-box input[type="tel"],
+            .condition-box input[type="tel"] {
+                text-align: right; /* 숫자 우측 정렬 */
+            }
+            .card-box input.sum {
+                float: right;
             }
         }
         .condition-toggle-wrapper {
@@ -174,79 +191,113 @@
 
 <script>
     let draggedItem = null;
+    let cardNo = 0;
 
-    function updateBalance(el) {
-        const box = el.closest('.card-box');
-        const target = parseFloat(box.querySelector('.target').value.replace(/,/g, '')) || 0;
-        const used = parseFloat(box.querySelector('.used').value.replace(/,/g, '')) || 0;
-        const balance = target - used;
-        box.querySelector('.balance').value = balance.toLocaleString();
+    // 숫자 입력 시 콤마 추가
+    function addCommaInput(event) {
+        let value = event.target.value.replace(/,/g, '') // 기존 콤마 제거
+        event.target.value = addComma(value)
     }
 
+    // 아이템 잔여금액 업데이트
+    function updateBalance(el, div) {
+        console.log('div')
+        const targetEl = ['.target', '.sub-target']
+        const usedEl = ['.used', '.sub-used']
+        const balanceEl = ['.balance', '.sub-balance']
+        console.log('::: ', targetEl[div], usedEl[div], balanceEl[div])
+
+        const box = el.closest('.card-box')
+        const target = getAmount(box.querySelector(`${targetEl[div]}`).value)
+        const used = getAmount(box.querySelector(`${usedEl[div]}`).value)
+        console.log(target, used, target-used)
+        box.querySelector(`${balanceEl[div]}`).value = addComma(target - used);
+        console.log(balanceEl[div], addComma(target - used))
+        // end - 선택된 el에 대한 계산값
+
+        const usedAmt = getAmount(box.querySelector('.used').value) + getAmount(box.querySelector('.sub-used').value)
+        box.querySelector('.sum').value = addComma(usedAmt); //총 사용액
+
+        const balance = getAmount(box.querySelector(`${targetEl[0]}`).value) - usedAmt //메인 기준 금액 - 총 사용액
+        box.querySelector('.balance').value = addComma(balance); //메인 잔여금액
+        console.log('balance :: ', balance)
+    }
+
+    // 숫자 값 처리 함수
+    function getAmount(value) {
+        const number = parseFloat(value.replace(/,/g, ''));
+        return isNaN(number) ? 0 : number;  // NaN이면 0을 반환
+    }
+
+    // 콤마 추가 함수
+    function addComma(value) {
+        return parseInt(value).toLocaleString();
+    }
+
+    // 카드 항목 생성
     function createCardBox(item = {}) {
         const box = document.createElement('div');
         box.className = 'card-box';
-        box.draggable = true;  // 드래그 가능하도록 설정
+        box.draggable = true;
         box.innerHTML = `
                 <input type="checkbox" class="select">
                 <input type="text" class="card" placeholder="아이템명" value="${item.card || ''}">
-                <input type="number" class="target" placeholder="실적기준금액" value="${item.target || ''}" onchange="updateBalance(this)" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
-                <input type="number" class="used" placeholder="사용금액" value="${item.used || ''}" onchange="updateBalance(this)" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
-                <input type="text" class="balance" placeholder="잔여금액" value="${item.balance || ''}" readonly>
+                <input type="tel" class="target" placeholder="실적기준금액" value="${item.target || ''}" onchange="updateBalance(this, 0)">
+                <input type="tel" class="used" placeholder="사용금액" value="${item.used || ''}" onchange="updateBalance(this, 0)">
+                <input type="tel" class="balance" placeholder="잔여금액" value="${item.balance || ''}" readonly>
                 <textarea class="note" placeholder="비고">${item.note || ''}</textarea>
             `;
 
         const radioWrapper = document.createElement('div');
         radioWrapper.className = 'condition-toggle-wrapper';
-        const uniqueName = `condition-${Date.now()}`;
+        const uniqueName = `condition-${item.cardNo || ++cardNo}`;
         radioWrapper.innerHTML = `
-    <label><input type="radio" name="${uniqueName}" value="Y"> 조건 추가</label>
-    <label><input type="radio" name="${uniqueName}" value="N" checked> 없음</label>
-  `;
+                <label><input type="radio" name="${uniqueName}" value="Y"> 조건 추가</label>
+                <label><input type="radio" name="${uniqueName}" value="N" checked> 없음</label>
+            `;
         box.appendChild(radioWrapper);
 
         const conditionBox = document.createElement('div');
         conditionBox.className = 'condition-box';
         conditionBox.style.display = 'none';
         conditionBox.innerHTML = `
-    <input type="text" class="sub-memo" placeholder="조건 메모">
-    <input type="number" class="sub-target" placeholder="조건 기준금액">
-    <input type="number" class="sub-used" placeholder="조건 사용금액">
-    <input type="text" class="sub-balance" placeholder="조건 잔여금액" readonly>
-  `;
+                <input type="text" class="sub-memo" placeholder="조건 메모">
+                <input type="tel" class="sub-target" placeholder="조건 기준금액" onchage="updateBalance(this, 1)">
+                <input type="tel" class="sub-used" placeholder="조건 사용금액" onchage="updateBalance(this, 1)">
+                <input type="tel" class="sub-balance" placeholder="조건 잔여금액" readonly>
+            `;
         box.appendChild(conditionBox);
+
+        const conditionBox2 = document.createElement('div');
+        conditionBox2.className = 'condition-box';
+        conditionBox2.style.display = 'none';
+        conditionBox2.innerHTML = `
+                <input type="tel" class="sum" placeholder="총 사용금액" value="${item.sum || ''}" readonly>
+            `;
+        box.appendChild(conditionBox2);
+
+        box.querySelectorAll('.sub-target, .sub-used').forEach(input => {
+            input.addEventListener('change', function() {
+                console.log('change event')
+                updateBalance(this, 1)
+            });
+        });
 
         radioWrapper.querySelectorAll('input[type="radio"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
                 if (e.target.value === 'Y') {
                     conditionBox.style.display = 'block';
+                    conditionBox2.style.display = 'block';
                 } else {
                     conditionBox.style.display = 'none';
-                    conditionBox.querySelector('.sub-memo').value = '';
-                    conditionBox.querySelector('.sub-target').value = '';
-                    conditionBox.querySelector('.sub-used').value = '';
-                    conditionBox.querySelector('.sub-balance').value = '';
-                    updateBalance(conditionBox.querySelector('.sub-used'));
+                    conditionBox2.style.display = 'none';
+                    // conditionBox.querySelector('.sub-memo').value = '';
+                    // conditionBox.querySelector('.sub-target').value = '';
+                    // conditionBox.querySelector('.sub-used').value = '';
+                    // conditionBox.querySelector('.sub-balance').value = '';
+                    // updateBalance(conditionBox.querySelector('.sub-used'));
                 }
             });
-        });
-
-        conditionBox.querySelector('.sub-used').addEventListener('input', (e) => {
-            const used = parseFloat(e.target.value) || 0;
-            const target = parseFloat(conditionBox.querySelector('.sub-target').value) || 0;
-            const balance = target - used;
-            conditionBox.querySelector('.sub-balance').value = balance.toFixed(0);
-
-            const parentBox = e.target.closest('.card-box');
-            parentBox.querySelector('.used').value = used;
-            updateBalance(parentBox.querySelector('.used'));
-        });
-
-        conditionBox.querySelector('.sub-target').addEventListener('input', (e) => {
-            const used = parseFloat(conditionBox.querySelector('.sub-used').value) || 0;
-            const target = parseFloat(e.target.value) || 0;
-            const balance = target - used;
-            conditionBox.querySelector('.sub-balance').value = balance.toFixed(0);
         });
 
         // 드래그 시작
@@ -278,103 +329,38 @@
     function saveData() {
         const cards = document.querySelectorAll('.card-box');
         const data = [];
-        cards.forEach(box => {
+        cards.forEach((box, idx) => {
             const cardInput = box.querySelector('.card');
             const targetInput = box.querySelector('.target');
             const usedInput = box.querySelector('.used');
             const balanceInput = box.querySelector('.balance');
             const noteInput = box.querySelector('.note');
 
-            if (cardInput && targetInput && usedInput && balanceInput && noteInput) {
+            if (cardInput) {
+                const conditionChecked = box.querySelector('.condition-toggle-wrapper input[value="Y"]')?.checked || false;
                 const subMemo = box.querySelector('.sub-memo')?.value || '';
                 const subTarget = box.querySelector('.sub-target')?.value || '';
                 const subUsed = box.querySelector('.sub-used')?.value || '';
                 const subBalance = box.querySelector('.sub-balance')?.value || '';
-                const conditionChecked = box.querySelector('.condition-toggle-wrapper input[value="Y"]')?.checked || false;
+                const sum = box.querySelector('.sum')?.value || '';
 
                 data.push({
+                    cardNo: idx,
                     card: cardInput.value,
                     target: targetInput.value,
                     used: usedInput.value,
                     balance: balanceInput.value,
                     note: noteInput.value,
+                    condition: conditionChecked ? 'Y' : 'N',
                     subMemo,
                     subTarget,
                     subUsed,
                     subBalance,
-                    condition: conditionChecked ? 'Y' : 'N'
+                    sum,
                 });
             }
         });
         console.log('data :: ', JSON.stringify(data))
-        localStorage.setItem('cardData', JSON.stringify(data));
-        alert('저장되었습니다!');
-    }
-
-    function loadData() {
-        const raw = localStorage.getItem('cardData');
-        const container = document.getElementById('cardBody');
-        container.innerHTML = '';
-        if (!raw) {
-            container.appendChild(createCardBox());
-            return;
-        }
-        const data = JSON.parse(raw);
-        if (data.length === 0) {
-            container.appendChild(createCardBox());
-        } else {
-            data.forEach(item => {
-                const box = createCardBox(item);
-
-                // 조건 값이 'Y'인 경우 조건 영역을 열고 값 입력
-                if (item.condition === 'Y') {
-                    const radios = box.querySelectorAll('.condition-toggle-wrapper input[type="radio"]');
-                    radios.forEach(radio => {
-                        if (radio.value === 'Y') radio.checked = true;
-                    });
-                    const conditionBox = box.querySelector('.condition-box');
-                    conditionBox.style.display = 'block';
-                    box.querySelector('.sub-memo').value = item.subMemo || '';
-                    box.querySelector('.sub-target').value = item.subTarget || '';
-                    box.querySelector('.sub-used').value = item.subUsed || '';
-                    box.querySelector('.sub-balance').value = item.subBalance || '';
-                }
-                container.appendChild(box);
-            });
-        }
-    }
-
-    function saveData() {
-        const cards = document.querySelectorAll('.card-box');
-        const data = [];
-        cards.forEach(box => {
-            const cardInput = box.querySelector('.card');
-            const targetInput = box.querySelector('.target');
-            const usedInput = box.querySelector('.used');
-            const balanceInput = box.querySelector('.balance');
-            const noteInput = box.querySelector('.note');
-
-            if (cardInput && targetInput && usedInput && balanceInput && noteInput) {
-                const subMemo = box.querySelector('.sub-memo')?.value || '';
-                const subTarget = box.querySelector('.sub-target')?.value || '';
-                const subUsed = box.querySelector('.sub-used')?.value || '';
-                const subBalance = box.querySelector('.sub-balance')?.value || '';
-                const conditionChecked = box.querySelector('.condition-toggle-wrapper input[value="Y"]')?.checked || false;
-
-                data.push({
-                    card: cardInput.value,
-                    target: targetInput.value,
-                    used: usedInput.value,
-                    balance: balanceInput.value,
-                    note: noteInput.value,
-                    subMemo,
-                    subTarget,
-                    subUsed,
-                    subBalance,
-                    condition: conditionChecked ? 'Y' : 'N'
-                });
-            }
-        });
         localStorage.setItem('cardData', JSON.stringify(data));
         alert('저장되었습니다!');
     }
@@ -399,13 +385,16 @@
         const container = document.getElementById('cardBody');
         container.innerHTML = '';
         if (!raw) {
+            console.log('!raw')
             container.appendChild(createCardBox());
             return;
         }
         const data = JSON.parse(raw);
         if (data.length === 0) {
+            console.log('zero')
             container.appendChild(createCardBox());
         } else {
+            cardNo = data.length
             data.forEach(item => {
                 const box = createCardBox(item);
 
@@ -415,12 +404,15 @@
                     radios.forEach(radio => {
                         if (radio.value === 'Y') radio.checked = true;
                     });
-                    const conditionBox = box.querySelector('.condition-box');
-                    conditionBox.style.display = 'block';
+                    box.querySelectorAll('.condition-box').forEach(conditionBox => {
+                        conditionBox.style.display = 'block';  // 각 .condition-box에 대해 'block' 설정
+                    });
                     box.querySelector('.sub-memo').value = item.subMemo || '';
                     box.querySelector('.sub-target').value = item.subTarget || '';
                     box.querySelector('.sub-used').value = item.subUsed || '';
                     box.querySelector('.sub-balance').value = item.subBalance || '';
+
+                    box.querySelector('.sum').value = item.sum || '';
                 }
                 container.appendChild(box);
             });
@@ -462,6 +454,10 @@
         });
 
         loadData()
+
+        document.querySelectorAll('.target, .used, .sub-target, .sub-used').forEach(input => {
+            input.addEventListener('input', addCommaInput);
+        });
     }
 </script>
 </body>
