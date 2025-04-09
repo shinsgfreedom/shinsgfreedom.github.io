@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>💳 신용카드 실적 관리</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-adsense-account" content="ca-pub-1638183902108768">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background: #f0f4f8;
+            color: #333;
+        }
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .left-controls, .right-controls {
+            display: flex;
+            gap: 10px;
+        }
+        .left-controls button {
+            padding: 8px 16px;
+            background: #ccc;
+            color: #333;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .right-controls button:first-child {
+            padding: 8px 16px;
+            background: #81C784;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .right-controls button:last-child {
+            padding: 8px 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .left-controls button:hover,
+        .right-controls button:hover {
+            filter: brightness(0.95);
+        }
+        .card-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            justify-content: center;
+        }
+        .card-box {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            padding: 16px;
+            width: 300px;
+            position: relative;
+        }
+        .card-box input[type="checkbox"] {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            transform: scale(2);
+            accent-color: #4CAF50;
+            cursor: pointer;
+        }
+        .card-box input[type="text"],
+        .card-box input[type="number"],
+        .card-box textarea {
+            margin-bottom: 8px;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            display: block;
+        }
+        .card-box input.card,
+        .card-box input.target,
+        .card-box input.used,
+        .card-box input.balance {
+            width: 48%;
+            display: inline-block;
+            margin-right: 4%;
+            margin-left: 40px;
+        }
+        .card-box input.balance {
+            margin-right: 0;
+        }
+        .card-box textarea.note {
+            width: 80%;
+            height: 60px;
+            margin-left: 40px;
+            resize: vertical;
+        }
+        @media (max-width: 768px) {
+            .card-box {
+                width: 100%;
+            }
+            .card-box input.card,
+            .card-box input.target,
+            .card-box input.used,
+            .card-box input.balance {
+                display: block;
+                margin-right: 0;
+                margin-left: 40px;
+            }
+        }
+        .condition-toggle-wrapper {
+            display: flex;
+            gap: 10px;
+            margin-left: 40px;
+            margin-bottom: 8px;
+        }
+        .condition-toggle-wrapper label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .condition-box input {
+            width: 48%;
+            display: inline-block;
+            margin-right: 4%;
+            margin-bottom: 8px;
+        }
+        .condition-toggle-wrapper {
+            display: flex;
+            gap: 10px;
+            margin-left: 40px;
+            margin-bottom: 8px;
+        }
+        .condition-toggle-wrapper label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .condition-box {
+            display: none;
+            margin-top: 20px;
+            border-top: 1px dashed #ccc;
+            padding-top: 20px;
+            margin-left: 40px;
+        }
+    </style>
+</head>
+<body>
+<div class="card-box" style="max-width: 800px; margin: 0 auto 20px auto; text-align: center;">
+    <h2 style="margin: 0;">💳 신용카드 실적 관리</h2>
+</div>
+<div class="top-bar">
+    <div class="left-controls">
+        <button onclick="deleteSelected()">삭제</button>
+    </div>
+    <div class="right-controls">
+        <button onclick="addRow()">카드 추가</button>
+        <button onclick="saveData()">저장</button>
+    </div>
+</div>
+<div class="card-container" id="cardBody">
+</div>
+
+<script>
+    function updateBalance(el) {
+        const box = el.closest('.card-box');
+        const target = parseFloat(box.querySelector('.target').value) || 0;
+        const used = parseFloat(box.querySelector('.used').value) || 0;
+        const balance = target - used;
+        box.querySelector('.balance').value = balance.toFixed(0);
+    }
+
+    function createCardBox(item = {}) {
+        const box = document.createElement('div');
+        box.className = 'card-box';
+        box.innerHTML = `
+        <input type="checkbox" class="select">
+        <input type="text" class="card" placeholder="아이템명" value="${item.card || ''}">
+        <input type="number" class="target" placeholder="실적기준금액" value="${item.target || ''}" onchange="updateBalance(this)">
+        <input type="number" class="used" placeholder="사용금액" value="${item.used || ''}" onchange="updateBalance(this)">
+        <input type="text" class="balance" placeholder="잔여금액" value="${item.balance || ''}" readonly>
+        <textarea class="note" placeholder="비고">${item.note || ''}</textarea>
+      `;
+        const radioWrapper = document.createElement('div');
+        radioWrapper.className = 'condition-toggle-wrapper';
+        const uniqueName = `condition-${Date.now()}`;
+        radioWrapper.innerHTML = `
+  <label><input type="radio" name="${uniqueName}" value="Y" class="condition-toggle"> 조건 추가</label>
+  <label><input type="radio" name="${uniqueName}" value="N" checked> 없음</label>
+`;
+        box.appendChild(radioWrapper);
+
+        const conditionBox = document.createElement('div');
+        conditionBox.className = 'condition-box';
+        conditionBox.style.display = 'none';
+
+        conditionBox.innerHTML = `
+  <input type="text" class="sub-memo" placeholder="조건 메모">
+  <input type="number" class="sub-target" placeholder="조건 기준금액">
+  <input type="number" class="sub-used" placeholder="조건 사용금액">
+  <input type="text" class="sub-balance" placeholder="조건 잔여금액" readonly>
+`;
+        box.appendChild(conditionBox);
+
+        radioWrapper.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.value === 'Y') {
+                    conditionBox.style.display = 'block';
+                } else {
+                    conditionBox.style.display = 'none';
+                    conditionBox.querySelector('.sub-memo').value = '';
+                    conditionBox.querySelector('.sub-target').value = '';
+                    conditionBox.querySelector('.sub-used').value = '';
+                    conditionBox.querySelector('.sub-balance').value = '';
+                    updateBalance(conditionBox.querySelector('.sub-used'));
+                }
+            });
+        });
+
+        conditionBox.querySelector('.sub-used').addEventListener('input', (e) => {
+            const used = parseFloat(e.target.value) || 0;
+            const target = parseFloat(conditionBox.querySelector('.sub-target').value) || 0;
+            const balance = target - used;
+            conditionBox.querySelector('.sub-balance').value = balance.toFixed(0);
+
+            // update parent
+            const parentBox = e.target.closest('.card-box');
+            const originalUsed = parseFloat(parentBox.querySelector('.used').value) || 0;
+            const adjustedUsed = used;
+            parentBox.querySelector('.used').value = adjustedUsed;
+            updateBalance(parentBox.querySelector('.used'));
+        });
+
+        conditionBox.querySelector('.sub-target').addEventListener('input', (e) => {
+            const used = parseFloat(conditionBox.querySelector('.sub-used').value) || 0;
+            const target = parseFloat(e.target.value) || 0;
+            const balance = target - used;
+            conditionBox.querySelector('.sub-balance').value = balance.toFixed(0);
+        });
+
+        return box;
+    }
+
+    function addRow() {
+        const container = document.getElementById('cardBody');
+        const card = createCardBox();
+        container.appendChild(card);
+    }
+
+    function saveData() {
+        const cards = document.querySelectorAll('.card-box');
+        const data = [];
+        cards.forEach(box => {
+            const cardInput = box.querySelector('.card');
+            const targetInput = box.querySelector('.target');
+            const usedInput = box.querySelector('.used');
+            const balanceInput = box.querySelector('.balance');
+            const noteInput = box.querySelector('.note');
+
+            if (cardInput && targetInput && usedInput && balanceInput && noteInput) {
+                data.push({
+                    card: cardInput.value,
+                    target: targetInput.value,
+                    used: usedInput.value,
+                    balance: balanceInput.value,
+                    note: noteInput.value,
+                });
+            }
+        });
+        localStorage.setItem('cardData', JSON.stringify(data));
+        alert('저장되었습니다!');
+    }
+
+    function loadData() {
+        const raw = localStorage.getItem('cardData');
+        const container = document.getElementById('cardBody');
+        container.innerHTML = '';
+        if (!raw) {
+            container.appendChild(createCardBox());
+            return;
+        }
+        const data = JSON.parse(raw);
+        if (data.length === 0) {
+            container.appendChild(createCardBox());
+        } else {
+            data.forEach(item => {
+                const box = createCardBox(item);
+                container.appendChild(box);
+            });
+        }
+    }
+
+    function deleteSelected() {
+        const boxes = document.querySelectorAll('.card-box');
+        let selected = false;
+        boxes.forEach(box => {
+            const checkbox = box.querySelector('.select');
+            if (checkbox && checkbox.checked) {
+                selected = true;
+                box.remove();
+            }
+        });
+        if (!selected) {
+            alert('삭제할 항목을 선택해주세요.');
+        }
+    }
+
+    window.onload = loadData;
+</script>
+</body>
+</html>
