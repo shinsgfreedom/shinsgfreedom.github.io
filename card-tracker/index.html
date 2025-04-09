@@ -91,7 +91,11 @@
             padding: 8px;
             border: 1px solid #ccc;
             border-radius: 6px;
-            display: block;
+            /*display: block;*/
+            box-sizing: border-box;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         .card-box input[type="tel"],
         .condition-box input[type="tel"] {
@@ -120,6 +124,26 @@
             height: 60px;
             margin-left: 40px;
             resize: vertical;
+        }
+        .card-box label {
+            font-weight: bold;
+            margin-right: 10px; /* 라벨과 인풋 간 간격 */
+            font-size: 14px;
+            display: inline-block;
+            /*width: 120px; !* 라벨 크기 설정 *!*/
+        }
+        .card-box .input-wrapper {
+            display: flex;
+            box-sizing: border-box;
+            /*justify-content: space-between;*/
+            align-items: center;
+            margin-left: 40px;
+        }
+        .condition-box .input-wrapper2 {
+            display: flex;
+            box-sizing: border-box;
+            /*justify-content: space-between;*/
+            align-items: center;
         }
         .dragging {
             opacity: 0.5;
@@ -161,9 +185,9 @@
         }
         .condition-box {
             display: none;
-            margin-top: 20px;
+            margin-top: 15px;
             border-top: 1px dashed #ccc;
-            padding-top: 20px;
+            padding-top: 15px;
             margin-left: 40px;
         }
         .condition-box input {
@@ -242,9 +266,18 @@
         box.innerHTML = `
                 <input type="checkbox" class="select">
                 <input type="text" class="card" placeholder="아이템명" value="${item.card || ''}">
-                <input type="tel" class="target" placeholder="실적기준금액" value="${item.target || ''}" onchange="updateBalance(this, 0)">
-                <input type="tel" class="used" placeholder="사용금액" value="${item.used || ''}" onchange="updateBalance(this, 0)">
-                <input type="tel" class="balance" placeholder="잔여금액" value="${item.balance || ''}" readonly>
+                <div class="input-wrapper">
+                    <label for="target">* 실적기준</label>
+                    <input type="tel" id="target" class="target" placeholder="실적기준금액" value="${item.target || ''}" onchange="updateBalance(this, 0)">
+                </div>
+                <div class="input-wrapper">
+                    <label for="used">- 사용금액</label>
+                    <input type="tel" id="used" class="used" placeholder="사용금액" value="${item.used || ''}" onchange="updateBalance(this, 0)">
+                </div>
+                <div class="input-wrapper">
+                    <label for="balance">= 잔여금액</label>
+                    <input type="tel" id="balance" class="balance" placeholder="잔여금액" value="${item.balance || ''}" readonly>
+                </div>
                 <textarea class="note" placeholder="비고">${item.note || ''}</textarea>
             `;
 
@@ -262,9 +295,18 @@
         conditionBox.style.display = 'none';
         conditionBox.innerHTML = `
                 <input type="text" class="sub-memo" placeholder="조건 메모">
-                <input type="tel" class="sub-target" placeholder="조건 기준금액" onchage="updateBalance(this, 1)">
-                <input type="tel" class="sub-used" placeholder="조건 사용금액" onchage="updateBalance(this, 1)">
-                <input type="tel" class="sub-balance" placeholder="조건 잔여금액" readonly>
+                <div class="input-wrapper2">
+                    <label for="sub-target">*</label>
+                    <input type="tel" id="sub-target" class="sub-target" placeholder="조건 기존금액" value="${item.subTarget || ''}" onchange="updateBalance(this, 1)">
+                </div>
+                <div class="input-wrapper2">
+                    <label for="sub-used">-</label>
+                    <input type="tel" id="sub-used" class="sub-used" placeholder="조건 사용금액" value="${item.subUsed || ''}" onchange="updateBalance(this, 1)">
+                </div>
+                <div class="input-wrapper2">
+                    <label for="sub-balance">=</label>
+                    <input type="tel" id="sub-balance" class="sub-balance" placeholder="조건 사용금액" value="${item.subBalance || ''}" readonly>
+                </div>
             `;
         box.appendChild(conditionBox);
 
