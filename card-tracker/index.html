@@ -63,15 +63,18 @@
             flex-wrap: wrap;
             gap: 16px;
             justify-content: center;
+            cursor: grab;
         }
         .card-box {
             background: white;
             border-radius: 12px;
             box-shadow: 0 2px 6px rgba(0,0,0,0.1);
             padding: 16px;
-            width: 300px;
+            max-width: 350px;
             height: 100%;
             position: relative;
+            cursor: grab;
+            box-sizing: border-box;  /* 패딩과 테두리가 너비에 포함되도록 */
         }
         .card-box input[type="checkbox"] {
             position: absolute;
@@ -101,12 +104,17 @@
         }
         .card-box input.balance {
             margin-right: 0;
+            background-color: #f1f1f1; /* readonly input styling */
         }
         .card-box textarea.note {
             width: 80%;
             height: 60px;
             margin-left: 40px;
             resize: vertical;
+        }
+        .dragging {
+            opacity: 0.5;
+            cursor: grabbing;
         }
         @media (max-width: 768px) {
             .card-box {
@@ -139,7 +147,7 @@
             margin-top: 20px;
             border-top: 1px dashed #ccc;
             padding-top: 20px;
-            margin-left: 40px
+            margin-left: 40px;
         }
         .condition-box input {
             width: 48%;
@@ -147,23 +155,10 @@
             margin-right: 4%;
             margin-bottom: 8px;
         }
-        .condition-toggle-wrapper {
-            display: flex;
-            gap: 10px;
-            margin-left: 40px;
-            margin-bottom: 8px;
-        }
-        .condition-toggle-wrapper label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 14px;
-            cursor: pointer;
-        }
     </style>
 </head>
 <body>
-<div class="card-box" style="max-width: 800px; margin: 0 auto 20px auto; text-align: center;">
+<div class="card-box" style="max-width:800px; margin: 0 auto 20px auto; text-align: center;">
     <h2 style="margin: 0;">💳 신용카드 실적 관리</h2>
 </div>
 <div class="top-bar">
@@ -176,26 +171,30 @@
     </div>
 </div>
 <div class="card-container" id="cardBody"></div>
+
 <script>
+    let draggedItem = null;
+
     function updateBalance(el) {
         const box = el.closest('.card-box');
-        const target = parseFloat(box.querySelector('.target').value) || 0;
-        const used = parseFloat(box.querySelector('.used').value) || 0;
+        const target = parseFloat(box.querySelector('.target').value.replace(/,/g, '')) || 0;
+        const used = parseFloat(box.querySelector('.used').value.replace(/,/g, '')) || 0;
         const balance = target - used;
-        box.querySelector('.balance').value = balance.toFixed(0);
+        box.querySelector('.balance').value = balance.toLocaleString();
     }
 
     function createCardBox(item = {}) {
         const box = document.createElement('div');
         box.className = 'card-box';
+        box.draggable = true;  // 드래그 가능하도록 설정
         box.innerHTML = `
-    <input type="checkbox" class="select">
-    <input type="text" class="card" placeholder="아이템명" value="${item.card || ''}">
-    <input type="number" class="target" placeholder="실적기준금액" value="${item.target || ''}" onchange="updateBalance(this)">
-    <input type="number" class="used" placeholder="사용금액" value="${item.used || ''}" onchange="updateBalance(this)">
-    <input type="text" class="balance" placeholder="잔여금액" value="${item.balance || ''}" readonly>
-    <textarea class="note" placeholder="비고">${item.note || ''}</textarea>
-  `;
+                <input type="checkbox" class="select">
+                <input type="text" class="card" placeholder="아이템명" value="${item.card || ''}">
+                <input type="number" class="target" placeholder="실적기준금액" value="${item.target || ''}" onchange="updateBalance(this)" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                <input type="number" class="used" placeholder="사용금액" value="${item.used || ''}" onchange="updateBalance(this)" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                <input type="text" class="balance" placeholder="잔여금액" value="${item.balance || ''}" readonly>
+                <textarea class="note" placeholder="비고">${item.note || ''}</textarea>
+            `;
 
         const radioWrapper = document.createElement('div');
         radioWrapper.className = 'condition-toggle-wrapper';
@@ -250,6 +249,22 @@
             conditionBox.querySelector('.sub-balance').value = balance.toFixed(0);
         });
 
+        // 드래그 시작
+        box.addEventListener('dragstart', (e) => {
+            draggedItem = box;
+            setTimeout(() => box.style.opacity = '0.5', 0);
+            box.classList.add('dragging');  // 드래그 중인 요소에 클래스를 추가
+        });
+
+        // 드래그 종료
+        box.addEventListener('dragend', (e) => {
+            setTimeout(() => {
+                draggedItem.style.opacity = '1';
+                draggedItem.classList.remove('dragging');  // 드래그 종료 시 클래스 제거
+                draggedItem = null;
+            }, 0);
+        });
+
         return box;
     }
 
@@ -259,6 +274,7 @@
         container.appendChild(card);
     }
 
+    // 저장된 데이터 불러오기 및 저장 처리
     function saveData() {
         const cards = document.querySelectorAll('.card-box');
         const data = [];
@@ -290,6 +306,7 @@
                 });
             }
         });
+        console.log('data :: ', JSON.stringify(data))
         localStorage.setItem('cardData', JSON.stringify(data));
         alert('저장되었습니다!');
     }
@@ -327,6 +344,41 @@
         }
     }
 
+    function saveData() {
+        const cards = document.querySelectorAll('.card-box');
+        const data = [];
+        cards.forEach(box => {
+            const cardInput = box.querySelector('.card');
+            const targetInput = box.querySelector('.target');
+            const usedInput = box.querySelector('.used');
+            const balanceInput = box.querySelector('.balance');
+            const noteInput = box.querySelector('.note');
+
+            if (cardInput && targetInput && usedInput && balanceInput && noteInput) {
+                const subMemo = box.querySelector('.sub-memo')?.value || '';
+                const subTarget = box.querySelector('.sub-target')?.value || '';
+                const subUsed = box.querySelector('.sub-used')?.value || '';
+                const subBalance = box.querySelector('.sub-balance')?.value || '';
+                const conditionChecked = box.querySelector('.condition-toggle-wrapper input[value="Y"]')?.checked || false;
+
+                data.push({
+                    card: cardInput.value,
+                    target: targetInput.value,
+                    used: usedInput.value,
+                    balance: balanceInput.value,
+                    note: noteInput.value,
+                    subMemo,
+                    subTarget,
+                    subUsed,
+                    subBalance,
+                    condition: conditionChecked ? 'Y' : 'N'
+                });
+            }
+        });
+        localStorage.setItem('cardData', JSON.stringify(data));
+        alert('저장되었습니다!');
+    }
+
     function deleteSelected() {
         const boxes = document.querySelectorAll('.card-box');
         let selected = false;
@@ -342,7 +394,75 @@
         }
     }
 
-    window.onload = loadData;
+    function loadData() {
+        const raw = localStorage.getItem('cardData');
+        const container = document.getElementById('cardBody');
+        container.innerHTML = '';
+        if (!raw) {
+            container.appendChild(createCardBox());
+            return;
+        }
+        const data = JSON.parse(raw);
+        if (data.length === 0) {
+            container.appendChild(createCardBox());
+        } else {
+            data.forEach(item => {
+                const box = createCardBox(item);
+
+                // 조건 값이 'Y'인 경우 조건 영역을 열고 값 입력
+                if (item.condition === 'Y') {
+                    const radios = box.querySelectorAll('.condition-toggle-wrapper input[type="radio"]');
+                    radios.forEach(radio => {
+                        if (radio.value === 'Y') radio.checked = true;
+                    });
+                    const conditionBox = box.querySelector('.condition-box');
+                    conditionBox.style.display = 'block';
+                    box.querySelector('.sub-memo').value = item.subMemo || '';
+                    box.querySelector('.sub-target').value = item.subTarget || '';
+                    box.querySelector('.sub-used').value = item.subUsed || '';
+                    box.querySelector('.sub-balance').value = item.subBalance || '';
+                }
+                container.appendChild(box);
+            });
+        }
+    }
+
+    // 카드들 사이에서 위치 변경
+    document.getElementById('cardBody').addEventListener('dragover', (e) => {
+        e.preventDefault();
+        const afterElement = getDragAfterElement(document.getElementById('cardBody'), e.clientY);
+        const dragged = document.querySelector('.dragging');
+        if (afterElement == null) {
+            document.getElementById('cardBody').appendChild(dragged);
+        } else {
+            document.getElementById('cardBody').insertBefore(dragged, afterElement);
+        }
+    });
+
+    function getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('.card-box:not(.dragging)')];
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    window.onload = () => {
+        const container = document.getElementById('cardBody');
+        container.addEventListener('dragstart', (e) => {
+            e.target.classList.add('dragging');
+        });
+        container.addEventListener('dragend', (e) => {
+            e.target.classList.remove('dragging');
+        });
+
+        loadData()
+    }
 </script>
 </body>
 </html>
