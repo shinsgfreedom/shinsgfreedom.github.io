@@ -2,148 +2,159 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>카카오 지도 핀</title>
+    <title>카카오 지도 CSV 핀 찍기</title>
     <style>
-        body { margin:0; padding:0; display:flex; height:100vh; font-family:Arial, sans-serif; }
-        #left { width:350px; padding:16px; box-sizing:border-box; border-right:1px solid #ddd; overflow:auto; }
+        body { margin:0; padding:0; display:flex; height:100vh; }
+        #left { width:300px; padding:12px; box-sizing:border-box; border-right:1px solid #ddd; }
         #map { flex:1; height:100%; }
-        textarea { width:100%; height:220px; box-sizing:border-box; font-family:monospace; }
-        .controls { margin-top:12px; display:flex; gap:8px; }
-        button { padding:8px 12px; cursor:pointer; }
-        ul { margin-top:12px; padding-left:16px; }
-        li { margin-bottom:6px; }
-        .status { margin-top:8px; font-size:0.9rem; color:#555; }
+        button { padding:8px 12px; margin-bottom:10px; width:100%; }
+        .mapInfo {padding:5px; width:200px; overflow: scroll}
     </style>
 </head>
 <body>
 
 <div id="left">
-    <h3>주소 목록(JSON)</h3>
-    <p>예: <code>[{"label":"회사","address":"서울…"}, {…}]</code></p>
-
-    <textarea id="jsonInput">[
-  {"label":"카카오(예시)","address":"경기 성남시 분당구 판교역로 235"},
-  {"label":"광화문(예시)","address":"서울 종로구 세종대로 172"}
-]</textarea>
-
-    <div class="controls">
-        <button id="plotBtn">핀 찍기</button>
-        <button id="clearBtn">초기화</button>
-    </div>
-
-    <div class="status" id="status">상태: 준비</div>
-
-    <h4>결과</h4>
-    <ul id="resultList"></ul>
+    <select id="area" style="width:100%; height:30px; margin-bottom:10px;">
+        <option value="">지역 선택</option>
+        <option value="songpa" selected>강남/광진/송파</option>
+    </select>
+    <button id="loadBtn">CSV 불러와서 핀 찍기</button>
+    <div id="status">상태: 대기</div>
+    <ul id="result"></ul>
 </div>
 
 <div id="map"></div>
 
 <!-- 카카오 지도 SDK (필수: services 라이브러리 포함) -->
-<script src="http://dapi.kakao.com/v2/maps/sdk.js?appkey=c9684df8cab7a761f65cd6492b2a3363&libraries=services&autoload=false"></script>
+<script src="http://dapi.kakao.com/v2/maps/sdk.js?appkey=c9684df8cab7a761f65cd6492b2a3363&libraries=services"></script>
 
 <script>
     let map;
     let markers = [];
-    let bounds;
-    const resultList = document.getElementById('resultList');
-    const statusEl = document.getElementById('status');
+    let bounds = new kakao.maps.LatLngBounds();
+    const resultEl = document.getElementById("result");
+    const statusEl = document.getElementById("status");
 
-    kakao.maps.load(() => {
-
-        map = new kakao.maps.Map(document.getElementById("map"), {  <!--수정-->
+    window.onload = function () {
+        map = new kakao.maps.Map(document.getElementById("map"), {
             center: new kakao.maps.LatLng(37.5665, 126.9780),
             level: 7
         });
-
-        // 테스트 주소 변환
-        const geocoder = new kakao.maps.services.Geocoder();
-        geocoder.addressSearch("서울 종로구 세종대로 172", function(result, status) {
-            console.log("status :: ", status)
-        });
-    });
-
-
-    // ⭐ 빠져있던 함수 추가
-    function geocode(addr) {
-        return new Promise((resolve, reject) => {
-            const geocoder = new kakao.maps.services.Geocoder();
-            geocoder.addressSearch(addr, (result, status) => {
-                if (status !== kakao.maps.services.Status.OK) {
-                    reject(new Error("주소 변환 실패"));
-                } else {
-                    resolve({
-                        lat: parseFloat(result[0].y),
-                        lng: parseFloat(result[0].x),
-                        formatted: result[0].address_name
-                    });
-                }
-            });
-        });
-    }
-
-    function addMarker(lat, lng, label) {
-        const pos = new kakao.maps.LatLng(lat, lng);
-        const marker = new kakao.maps.Marker({ position: pos });
-        marker.setMap(map);
-        markers.push(marker);
-        bounds.extend(pos);
-
-        const info = new kakao.maps.InfoWindow({
-            content: `<div style="padding:8px;">${label}</div>`
-        });
-        kakao.maps.event.addListener(marker, "click", () => info.open(map, marker));
-    }
+    };
 
     function clearMarkers() {
         markers.forEach(m => m.setMap(null));
         markers = [];
         bounds = new kakao.maps.LatLngBounds();
-        resultList.innerHTML = "";
+        resultEl.innerHTML = "";
     }
 
-    async function plot() {
-        let list;
+    async function loadCSV() {
+
+        const file = document.getElementById("area").value;
+
+        if (file === '') {
+            alert('지역을 선택해 주세요')
+            document.getElementById("area").focus()
+            return
+        }
+
+        statusEl.textContent = "상태: CSV 불러오는 중…";
+
+
+        let text;
         try {
-            list = JSON.parse(document.getElementById("jsonInput").value);
-        } catch (e) {
-            statusEl.textContent = "상태: JSON 오류";
+            // 📌 서버 CSV 불러오기
+            const res = await fetch(`http://localhost/data/${file}.csv`);
+            text = await res.text();
+        } catch (err) {
+            statusEl.textContent = "상태: CSV 로드 실패";
             return;
         }
 
+        // 📌 CSV 줄 나누기
+        const lines = text
+            .split(/\r?\n/)
+            .map(v => v.trim())
+            .filter(v => v.length > 0);
+
+        const list = [];
+
+        // 📌 각 줄을 label, address 로 자동 매핑
+        lines.forEach(line => {
+            const cols = line.replace(/"/g, "").split(",");
+            if (cols.length >= 2) {
+                list.push({
+                    label: cols[0].trim(),
+                    address: cols[1].trim(),
+                    lng: cols[2].trim(),
+                    lat: cols[3].trim(),
+                    full: cols[4].trim(),
+                });
+            }
+        });
+
+        statusEl.textContent = `상태: ${list.length}개 주소 변환중…`;
+
+        await plotAddresses(list);
+
+        statusEl.textContent = "상태: 완료";
+    }
+
+    async function plotAddresses(list) {
+        console.log(list);
         clearMarkers();
-        statusEl.textContent = `상태: ${list.length}개 처리 중…`;
 
-        for (let i = 0; i < list.length; i++) {
-            const item = list[i];
-            const label = item.label || item.address;
-            const addr = item.address;
-
+        for (const item of list) {
             try {
-                const c = await geocode(addr);
-                addMarker(c.lat, c.lng, `${label}<br>${c.formatted}`);
-                resultList.insertAdjacentHTML(
-                    "beforeend",
-                    `<li>${label} → ${c.formatted}</li>`
-                );
-            } catch (err) {
-                resultList.insertAdjacentHTML(
-                    "beforeend",
-                    `<li>${label} → 변환 실패</li>`
-                );
+                const pos = new kakao.maps.LatLng(item.lat, item.lng);
+                bounds.extend(pos);
+
+                const marker = new kakao.maps.Marker({ position: pos });
+                marker.setMap(map);
+                markers.push(marker);
+
+                // new kakao.maps.InfoWindow({
+                //     content: `<div style="padding:6px;">${item.address}</div>`
+                // }).open(map, marker);
+
+                // 인포윈도우를 생성합니다
+                let infowindow = new kakao.maps.InfoWindow({
+                    content : `<div class="mapInfo">${item.full}</div>`,
+                    removable : true
+                });
+
+                // 마커에 클릭이벤트를 등록합니다
+                kakao.maps.event.addListener(marker, 'click', function() {
+                    // 마커 위에 인포윈도우를 표시합니다
+                    infowindow.open(map, marker);
+                });
+
+                // // 마커에 마우스오버 이벤트를 등록합니다
+                // kakao.maps.event.addListener(marker, 'mouseover', function() {
+                //     // 마커에 마우스오버 이벤트가 발생하면 인포윈도우를 마커위에 표시합니다
+                //     infowindow.open(map, marker);
+                // });
+
+                // // 마커에 마우스아웃 이벤트를 등록합니다
+                // kakao.maps.event.addListener(marker, 'mouseout', function() {
+                //     // 마커에 마우스아웃 이벤트가 발생하면 인포윈도우를 제거합니다
+                //     infowindow.close();
+                // });
+
+                resultEl.innerHTML += `<li><strong>${item.label}</strong> <br> ${item.address}</li>`;
+            } catch (e) {
+                resultEl.innerHTML += `<li>${item.label} → 변환 실패</li>`;
             }
         }
 
         if (markers.length > 0) {
             map.setBounds(bounds);
         }
-
-        statusEl.textContent = "상태: 완료";
     }
 
-    document.getElementById("plotBtn").onclick = plot;
-    document.getElementById("clearBtn").onclick = clearMarkers;
+    document.getElementById("loadBtn").onclick = loadCSV;
 </script>
+
 </body>
 </html>
