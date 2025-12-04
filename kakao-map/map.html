@@ -8,7 +8,7 @@
         #left { width:300px; padding:12px; box-sizing:border-box; border-right:1px solid #ddd; }
         #map { flex:1; height:100%; }
         button { padding:8px 12px; margin-bottom:10px; width:100%; }
-        .mapInfo {padding:5px; width:200px; overflow: scroll}
+        .mapInfo {padding:5px; width:200px; overflow: scroll; font-size:14px;}
     </style>
 </head>
 <body>
@@ -67,7 +67,7 @@
         let text;
         try {
             // 📌 서버 CSV 불러오기
-            const res = await fetch(`http://localhost/data/${file}.csv`);
+            const res = await fetch(`./data/${file}.csv`);
             text = await res.text();
         } catch (err) {
             statusEl.textContent = "상태: CSV 로드 실패";
