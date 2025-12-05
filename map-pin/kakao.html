@@ -2,42 +2,120 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8" />
-    <title>카카오 지도 CSV 핀 찍기</title>
+    <title>📍 맵 위치 확인</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { margin:0; padding:0; display:flex; height:100vh; }
-        #left { width:300px; padding:12px; box-sizing:border-box; border-right:1px solid #ddd; }
-        #map { flex:1; height:100%; }
-        button { padding:8px 12px; margin-bottom:10px; width:100%; }
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+
+        /* PC Layout */
+        #container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        #left {
+            width: 360px;
+            padding: 12px;
+            box-sizing: border-box;
+            border-right: 1px solid #ddd;
+            overflow-y: auto;
+            background: #fafafa;
+        }
+
+        #map {
+            flex: 1;
+            height: 100%;
+        }
+
+        button {
+            padding: 10px;
+            margin: 10px 0 10px 0;
+            width: 100%;
+            font-size: 16px;
+        }
+
+        select {
+            width: 100%;
+            height: 35px;
+            font-size: 16px;
+        }
+
+        ul#result {
+            padding-left: 20px;
+        }
+
         .mapInfo {padding:5px; width:200px; overflow: scroll; font-size:14px;}
+
+        /* ───── 📱 모바일 대응 ───── */
+        @media (max-width: 768px) {
+            body {
+                display: block;
+                height: auto;
+            }
+
+            #container {
+                flex-direction: column;
+                height: auto;
+            }
+
+            #left {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #ddd;
+            }
+
+            #map {
+                width: 100%;
+                height: calc(100vh - 200px); /* 모바일에서 지도 꽉 차게 */
+            }
+
+            ul#result {
+                max-height: 150px;
+                overflow-y: auto;
+                padding-left: 20px;
+            }
+        }
     </style>
 </head>
 <body>
+<div id="container">
+    <div id="left">
+        <select id="area">
+            <option value="">지역 선택</option>
+            <option value="songpa">강남/광진/송파(13)</option>
+            <option value="gangdong" selected>강동(18)</option>
+            <option value="guro" selected>구로(17)</option>
+        </select>
+        <button id="loadBtn">CSV 핀 찍기</button>
+        <div id="status">상태: 대기</div>
+        <ul id="result"></ul>
+    </div>
 
-<div id="left">
-    <select id="area" style="width:100%; height:30px; margin-bottom:10px;">
-        <option value="">지역 선택</option>
-        <option value="songpa">강남/광진/송파(13)</option>
-        <option value="gangdong" selected>강동(18)</option>
-    </select>
-    <button id="loadBtn">CSV 불러와서 핀 찍기</button>
-    <div id="status">상태: 대기</div>
-    <ul id="result"></ul>
+    <div id="map"></div>
 </div>
 
-<div id="map"></div>
-
 <!-- 카카오 지도 SDK (필수: services 라이브러리 포함) -->
-<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=e460c26a9dfe2fa0b1835052c2116608&libraries=services"></script><!--운영-->
-<!--<script src="http://dapi.kakao.com/v2/maps/sdk.js?appkey=c9684df8cab7a761f65cd6492b2a3363&libraries=services"></script>&lt;!&ndash;개발&ndash;&gt;-->
+<!--<script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=e460c26a9dfe2fa0b1835052c2116608&libraries=services"></script>&lt;!&ndash;운영&ndash;&gt;-->
+<script src="http://dapi.kakao.com/v2/maps/sdk.js?appkey=c9684df8cab7a761f65cd6492b2a3363&libraries=services"></script><!--개발-->
 
 <script>
     let map;
     let markers = [];
-    let bounds = new kakao.maps.LatLngBounds();
+    let bounds;
     const resultEl = document.getElementById("result");
     const statusEl = document.getElementById("status");
 
     kakao.maps.load(function () {
+        bounds = new kakao.maps.LatLngBounds()
+
         map = new kakao.maps.Map(document.getElementById("map"), {
             center: new kakao.maps.LatLng(37.5665, 126.9780),
             level: 7
@@ -96,7 +174,7 @@
             }
         });
 
-        statusEl.textContent = `상태: ${list.length}개 주소 변환중…`;
+        statusEl.textContent = `상태: ${list.length}개 주소`;
 
         await plotAddresses(list);
 
@@ -146,7 +224,8 @@
 
                 resultEl.innerHTML += `<li><strong>${item.label}</strong> <br> ${item.address}</li>`;
             } catch (e) {
-                resultEl.innerHTML += `<li>${item.label} → 변환 실패</li>`;
+                console.error(e);
+                resultEl.innerHTML += `<li>${item.label} → 실패</li>`;
             }
         }
 
